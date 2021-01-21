@@ -19,29 +19,29 @@ readCSV::DateFrame& readCSV::DateFrame::operator=(const DateFrame& rhs)
 
 void readCSV::DateFrame::FromCsv(const char* path, std::map<std::string, DataType>& dtypes)
 {
-    std::vector<std::vector<std::string>> allData;                 // 将所有数据保存到 allData 中;
+    std::vector<std::vector<std::string>> allData;                  // 将所有数据保存到 allData 中;
     std::ifstream fin(path, std::ifstream::in);
 
-    std::string line;                                   // 用于保存首行；
-    while (std::getline(fin, line))                     // 获取一行；
+    std::string line;                                               // 用于保存首行；
+    while (std::getline(fin, line))                                 // 获取一行；
     {
         std::vector<std::string> curLine;
         std::istringstream sin(line);
         std::string singleString;
         while (getline(sin, singleString, ','))
         {
-            curLine.push_back(singleString);        // 将当前行中每个string 存放起来；
+            curLine.push_back(singleString);                        // 将当前行中每个string 存放起来；
         }
-        allData.push_back(curLine);                 // 将当前行存放起来；
+        allData.push_back(curLine);                                 // 将当前行存放起来；
     }
 
-    index_label = allData[0][0];                    // index_label = datetime;
+    index_label = allData[0][0];                                    // index_label = datetime;
 
     int n = allData.size();
-    index.resize(n);
-    for (int i=1; i<n; ++i)                         // 保存第一列 index;
+    index.resize(n-1);
+    for (int i=1; i<n; ++i)                                         // 保存第一列 index;
     {
-        index[i] = allData[i][0];
+        index[i-1] = allData[i][0];
     }
 
     // 读取 dtypes 数据和类型 kInt64, kDouble, kString
@@ -50,7 +50,6 @@ void readCSV::DateFrame::FromCsv(const char* path, std::map<std::string, DataTyp
         column.push_back(dt.first);                 // 保存第一行数据
         readDtype(dt.second, dt.first, allData);
     }
-
     return;
 }
 
@@ -83,17 +82,15 @@ void readCSV::DateFrame::readDtype(const DataType& dtype, const std::string& dtF
     }
     else if (kString == dtype)            // dtype 为 kDouble 类型
     {
-        std::vector<std::string> col;
+        std::vector<std::string> col(n-1);
         for (int i=1; i<allData.size(); ++i)
         {
             std::string str = allData[i][idx];
-            col.push_back(str);
+            col[i-1] = str;
         }
         stringColumn[dtFirst] = col;
     }
 }
-
-
 
 
 void readCSV::DateFrame::ToCsv(const char* path, std::vector<std::string>& columns)
@@ -116,165 +113,67 @@ void readCSV::DateFrame::ToCsv(const char* path, std::vector<std::string>& colum
     // 将 columns 中的列写入文件；
     for (int i=0; i<index.size(); ++i)
     {
-        std::string curLine(index[i]);                                                    // index 列
-        
-        for (int j=0; j<column.size(); ++j)
-        {
-            auto cols = find(columns.begin(), columns.end(), column[j]);
-            if (cols != columns.end())
-            {
-                if (intColumn.count(*cols) > 0)
-                {
-                    curLine += ","+std::to_string((intColumn[*cols])[i]);               // 在 int 类型 的 map 中
-                }
-                else if (doubleColumn.count(*cols) > 0)
-                {
-                    curLine += ","+std::to_string((doubleColumn[*cols])[i]);             // 在 double 类型 的 map 中
-                }
-                else if (stringColumn.count(*cols) > 0)
-                {
-                    curLine += ","+(stringColumn[*cols])[i];                        // 在 string 类型 的 map 中
-                }                
-            }
-        }
-        curLine += "\n";
-        fout << curLine;
+        writeToFile(fout, columns, i); 
     }
     return;
 }
 
 // 查找单个值
-std::string readCSV::DateFrame::GetData(const std::string& index_name, const std::string& column_name)
+const std::string readCSV::DateFrame::GetData(const std::string& index_name, const std::string& column_name)
 {
-    std::string res;
     int row = find(index.begin(), index.end(), index_name)-index.begin();
-    if (intColumn.count(column_name)==0 && doubleColumn.count(column_name)==0 && stringColumn.count(column_name)==0)
-    {
-        return res;
-    }
-    else if (intColumn.count(column_name) > 0)
-    {
-        res = std::to_string(intColumn[column_name][row]);
-    }
-    else if (doubleColumn.count(column_name) > 0)
-    {
-        res = std::to_string(doubleColumn[column_name][row]);
-    }
-    else if (stringColumn.count(column_name) > 0)
-    {
-        res = stringColumn[column_name][row];
-    }
+    int col = find(column.begin(), column.end(), column_name)-column.begin();
 
-    return res;
+    return GetData(row, col);
 }
 
 // 按照index和columns查找多个值。
-readCSV::DateFrame readCSV::DateFrame::GetData(const std::string& start, const std::string& end, const std::vector<std::string>& columns)
+const readCSV::DateFrame readCSV::DateFrame::GetData(const std::string& start, const std::string& end, const std::vector<std::string>& columns)
 {
     const char* file = "../outPut/getDataByColumns.csv";
-    
-    std::ofstream fout(file);
-    std::string res(index_label);
-
-    for (auto col:column)               // 输出 column 行
-    {
-        auto iter = find(columns.begin(), columns.end(), col);
-        if (iter != columns.end())
-        {
-            res += ','+col;
-        }
-    }
-    fout << res << std::endl;
-
-    int low = find(index.begin(), index.end(), start)-index.begin();
-    int high = find(index.begin(), index.end(), end)-index.begin();
-    for (int i=low; i<=high; ++i)
-    {
-        std::string curLine(index[i]);                                                    // index 列
-        
-        for (int j=0; j<column.size(); ++j)
-        {
-            auto cols = find(columns.begin(), columns.end(), column[j]);
-            if (cols != columns.end())
-            {
-                if (intColumn.count(*cols) > 0)
-                {
-                    curLine += ","+std::to_string((intColumn[*cols])[i]);               // 在 int 类型 的 map 中
-                }
-                else if (doubleColumn.count(*cols) > 0)
-                {
-                    curLine += ","+std::to_string((doubleColumn[*cols])[i]);             // 在 double 类型 的 map 中
-                }
-                else if (stringColumn.count(*cols) > 0)
-                {
-                    curLine += ","+(stringColumn[*cols])[i];                        // 在 string 类型 的 map 中
-                }                
-            }
-        }
-        fout << curLine << std::endl;
-    }
-    fout.close();
-    
-    std::map<std::string, DataType> dtypes;
-    for (auto c:columns)
-    {
-        if (intColumn.count(c) > 0)
-        {
-            dtypes[c] = kInt64;
-        }
-        else if (doubleColumn.count(c) > 0)
-        {
-            dtypes[c] = kDouble;
-        }
-        else if (stringColumn.count(c) > 0)
-        {
-            dtypes[c] = kString;
-        }
-    }
-
-    DateFrame temp;
-    temp.FromCsv(file, dtypes);
-    return temp;
+    return __GetData(start, end, columns, file);
 }
 
 // 按照行列号查找单个值
 std::string readCSV::DateFrame::GetData(int i, int j)
 {
-    if (i>index.size() || j>column.size()+1)
+    return __GetData(i, j);
+}
+
+const std::string readCSV::DateFrame::__GetData(int row, int col)
+{
+    if (row>index.size() || col>column.size()+1)
     {
         return "row or col out of variable range";
     }
-    std::string column_name = column[j-2];
-    std::string index_name = index[i-1];
-    return GetData(index_name, column_name);
+
+    std::string str(column[col-1]);
+    if (intColumn.count(str) > 0) return std::to_string(intColumn[str][row-1]);
+    else if (doubleColumn.count(str) > 0) return std::to_string(doubleColumn[str][row-1]);
+    else if (stringColumn.count(str) > 0) return stringColumn[str][row-1];
+
+    return std::string();
 }
 
 // 按照行列号查找多个值。
 readCSV::DateFrame readCSV::DateFrame::GetData(int row_start, int row_end, int col_start, int col_end)
 {
-    if (row_start>row_end || col_start > col_end) 
+    if (row_start>row_end || col_start>col_end || col_start>=column.size()) 
     {
         readCSV::sys_error("invalid input parameter\n");
     }
-    if (col_start>=column.size())
-    {
-        readCSV::sys_error("col_start out of range\n");
-    }
-    if (col_end>=column.size())
-    {
-        col_end = column.size()-1;
-    }
+    
+    col_end = (col_end>=column.size()) ? (column.size()-1) : col_end;
 
     std::string start = index[row_start-1];
     std::string end = index[row_end-1];
 
-    std::vector<std::string> columns(col_end-col_start+1, "");
-    for (int j=0; j<col_end-col_start; ++j)
-    {
-        columns[j] = column[j+col_start-1];
-    }
+    int len = col_end-col_start+1;
+    std::vector<std::string> columns(column.begin()+col_start, column.begin()+len);
 
-    return GetData(start, end, columns);
+    const char* file = "../outPut/getDataByRowAndCols.csv";
+
+    return __GetData(start, end, columns, file);
 }
 
 // 按某一列排序
@@ -424,3 +323,72 @@ void readCSV::operateHelper(readCSV::DateFrame& opedObj, readCSV::DateFrame& lhs
     return;
 }
 
+void readCSV::DateFrame::writeToFile(std::ofstream& fout, const std::vector<std::string>& columns, int i)
+{
+    std::string curLine(index[i]);                                                    // index 列
+    for (int j=0; j<column.size(); ++j)
+    {
+        auto cols = find(columns.begin(), columns.end(), column[j]);
+        if (cols != columns.end())
+        {
+            if (intColumn.count(*cols) > 0)
+            {
+                curLine += ","+std::to_string((intColumn[*cols])[i]);               // 在 int 类型 的 map 中
+            }
+            else if (doubleColumn.count(*cols) > 0)
+            {
+                curLine += ","+std::to_string((doubleColumn[*cols])[i]);             // 在 double 类型 的 map 中
+            }
+            else if (stringColumn.count(*cols) > 0)
+            {
+                curLine += ","+(stringColumn[*cols])[i];                            // 在 string 类型 的 map 中
+            }                
+        }
+    }
+    fout << curLine << std::endl;
+}
+
+
+const readCSV::DateFrame readCSV::DateFrame::__GetData(const std::string& start, const std::string& end, const std::vector<std::string>& columns, const char* file)
+{
+    std::ofstream fout(file);
+    std::string res(index_label);
+    for (auto col:column)               // 输出 column 行
+    {
+        auto iter = find(columns.begin(), columns.end(), col);
+        if (iter != columns.end())
+        {
+            res += ','+col;
+        }
+    }
+    fout << res << std::endl;
+
+    int low = find(index.begin(), index.end(), start)-index.begin();
+    int high = find(index.begin(), index.end(), end)-index.begin();
+    for (int i=low; i<=high; ++i)
+    {
+        writeToFile(fout, columns, i);  
+    }
+    fout.close();
+    
+    std::map<std::string, DataType> dtypes;
+    for (auto c:columns)
+    {
+        if (intColumn.count(c) > 0)
+        {
+            dtypes[c] = kInt64;
+        }
+        else if (doubleColumn.count(c) > 0)
+        {
+            dtypes[c] = kDouble;
+        }
+        else if (stringColumn.count(c) > 0)
+        {
+            dtypes[c] = kString;
+        }
+    }
+
+    DateFrame temp;
+    temp.FromCsv(file, dtypes);
+    return temp;
+}

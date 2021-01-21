@@ -3,8 +3,10 @@
 
 int main(int argc, const char* argv[])
 {
-    std::string path = argv[1];
-    std::map<std::string, readCSV::DataType> dtypes = {{"localtime", readCSV::kInt64}, {"prev_close", readCSV::kDouble}, {"ask_prc1", readCSV::kDouble}, {"bid_vol3", readCSV::kInt64}};
+    std::map<std::string, readCSV::DataType> dtypes = { {"localtime", readCSV::kInt64}, 
+                                                        {"prev_close", readCSV::kDouble}, 
+                                                        {"ask_prc1", readCSV::kDouble},
+                                                        {"bid_vol3", readCSV::kInt64} };
 
     readCSV::DateFrame data;
 

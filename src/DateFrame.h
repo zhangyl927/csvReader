@@ -29,8 +29,8 @@ public:
     DateFrame& operator=(const DateFrame& rhs);
 
     //   查询接口
-    std::string GetData(const std::string& index_name, const std::string& column_name);
-    DateFrame GetData(const std::string& start, const std::string& end, const std::vector<std::string>& columns);
+    const std::string GetData(const std::string& index_name, const std::string& column_name);
+    const DateFrame GetData(const std::string& start, const std::string& end, const std::vector<std::string>& columns);
     std::string GetData(int i, int j);
     DateFrame GetData(int row_start, int row_end, int col_start, int col_end);
     
@@ -44,13 +44,13 @@ public:
     std::vector<std::string> getIndex() const { return index; }
     
     
-    ~DateFrame() { }
+    ~DateFrame() {  }
 
 //     Fill(vector<>&  columns, string& method);
 private:
-    std::string index_label;                             // datetime
-    std::vector<std::string> column;                          // 第一行数据
-    std::vector<std::string> index;                           // 第一列数据 index
+    std::string index_label;                                    // datetime
+    std::vector<std::string> column;                            // 第一行数据
+    std::vector<std::string> index;                             // 第一列数据 index
     
     std::map<std::string, std::vector<uint64_t>> intColumn;              // key-列名， value-列数据；
     std::map<std::string, std::vector<double>> doubleColumn;
@@ -60,7 +60,16 @@ private:
     DateFrame& helper(std::vector<T>& sortCol, bool ascend, bool copy);
     
     void readDtype(const DataType& dtype, const std::string& dtFirst, std::vector<std::vector<std::string>>& allData);
+
+    void writeToFile(std::ofstream& fout, const std::vector<std::string>& columns, int idx);
+
+    const std::string __GetData(int row, int col);
+    const DateFrame __GetData(const std::string& start, const std::string& end, 
+        const std::vector<std::string>& columns, const char* file);
 };
+
+const DateFrame operator+(DateFrame& lhs, DateFrame& rhs);
+void operateHelper(DateFrame& opedObj, DateFrame& lhs, DateFrame& rhs, int l1, int l2);
 
 }
 
